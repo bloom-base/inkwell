@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Tests - inkwell</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #fafafa;
+            color: #171717;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+        }
+        .test-summary {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            border-radius: 6px;
+            background: white;
+            border: 1px solid #e5e5e5;
+        }
+        .test-result {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+        .test-result.pass {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            color: #166534;
+        }
+        .test-result.fail {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+        }
+        .test-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .test-error {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            opacity: 0.8;
+        }
+        .summary-stats {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.875rem;
+        }
+        .stat {
+            font-weight: 500;
+        }
+        .stat.pass { color: #166534; }
+        .stat.fail { color: #991b1b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Editor Keyboard Shortcuts Tests</h1>
+        <div class="test-summary" id="summary"></div>
+        <div id="results"></div>
+    </div>
+
+    <script type="module">
+        // Import the keyboard shortcuts utilities
+        import { wrapSelection, insertLink } from './editor-shortcuts.js';
+
+        const results = [];
+
+        function test(name, fn) {
+            try {
+                fn();
+                results.push({ name, pass: true });
+            } catch (error) {
+                results.push({ name, pass: false, error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        function assertEquals(actual, expected, message) {
+            if (actual !== expected) {
+                throw new Error(message || `Expected ${expected}, got ${actual}`);
+            }
+        }
+
+        // Tests for text wrapping
+        test('wrapSelection wraps text with bold markers', () => {
+            const result = wrapSelection('hello world', 0, 11, '**', '**');
+            assertEquals(result.text, '**hello world**');
+            assertEquals(result.selectionStart, 2);
+            assertEquals(result.selectionEnd, 13);
+        });
+
+        test('wrapSelection wraps selected text only', () => {
+            const result = wrapSelection('hello world', 0, 5, '**', '**');
+            assertEquals(result.text, '**hello** world');
+            assertEquals(result.selectionStart, 2);
+            assertEquals(result.selectionEnd, 7);
+        });
+
+        test('wrapSelection wraps with italic markers', () => {
+            const result = wrapSelection('emphasized', 0, 10, '*', '*');
+            assertEquals(result.text, '*emphasized*');
+            assertEquals(result.selectionStart, 1);
+            assertEquals(result.selectionEnd, 11);
+        });
+
+        test('wrapSelection handles mid-text selection', () => {
+            const result = wrapSelection('the quick brown fox', 4, 9, '**', '**');
+            assertEquals(result.text, 'the **quick** brown fox');
+            assertEquals(result.selectionStart, 6);
+            assertEquals(result.selectionEnd, 11);
+        });
+
+        test('wrapSelection unwraps already wrapped text (bold)', () => {
+            const result = wrapSelection('**bold**', 2, 6, '**', '**');
+            assertEquals(result.text, 'bold');
+            assertEquals(result.selectionStart, 0);
+            assertEquals(result.selectionEnd, 4);
+        });
+
+        test('wrapSelection unwraps already wrapped text (italic)', () => {
+            const result = wrapSelection('*italic*', 1, 7, '*', '*');
+            assertEquals(result.text, 'italic');
+            assertEquals(result.selectionStart, 0);
+            assertEquals(result.selectionEnd, 6);
+        });
+
+        test('wrapSelection handles empty selection - inserts markers at cursor', () => {
+            const result = wrapSelection('hello world', 5, 5, '**', '**');
+            assertEquals(result.text, 'hello**** world');
+            assertEquals(result.selectionStart, 7);
+            assertEquals(result.selectionEnd, 7);
+        });
+
+        test('insertLink creates markdown link with selection', () => {
+            const result = insertLink('click here', 0, 10, 'https://example.com');
+            assertEquals(result.text, '[click here](https://example.com)');
+            assertEquals(result.selectionStart, 1);
+            assertEquals(result.selectionEnd, 11);
+        });
+
+        test('insertLink creates markdown link without selection', () => {
+            const result = insertLink('text', 4, 4, 'https://example.com');
+            assertEquals(result.text, 'text[](https://example.com)');
+            assertEquals(result.selectionStart, 5);
+            assertEquals(result.selectionEnd, 5);
+        });
+
+        test('insertLink handles selection in middle of text', () => {
+            const result = insertLink('see this example here', 4, 16, 'https://example.com');
+            assertEquals(result.text, 'see [this example](https://example.com) here');
+            assertEquals(result.selectionStart, 5);
+            assertEquals(result.selectionEnd, 17);
+        });
+
+        // Display results
+        const passCount = results.filter(r => r.pass).length;
+        const failCount = results.filter(r => !r.pass).length;
+
+        document.getElementById('summary').innerHTML = `
+            <div class="summary-stats">
+                <div class="stat pass">${passCount} passed</div>
+                <div class="stat fail">${failCount} failed</div>
+                <div class="stat">Total: ${results.length}</div>
+            </div>
+        `;
+
+        document.getElementById('results').innerHTML = results.map(r => `
+            <div class="test-result ${r.pass ? 'pass' : 'fail'}">
+                <div class="test-name">${r.pass ? '✓' : '✗'} ${r.name}</div>
+                ${r.error ? `<div class="test-error">${r.error}</div>` : ''}
+            </div>
+        `).join('');
+
+        // Exit with error code if tests failed (for CI)
+        if (failCount > 0) {
+            console.error(`${failCount} test(s) failed`);
+        }
+    </script>
+</body>
+</html>
