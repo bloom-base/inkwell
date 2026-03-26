@@ -52,6 +52,40 @@ function generateExcerpt(content, maxLength = 150) {
     return plainText.substring(0, maxLength) + '...';
 }
 
+// Generate markdown file content with frontmatter for a post
+function generateMarkdownFile(post) {
+    const tags = extractTags(post.content);
+    const date = new Date(post.date).toISOString().split('T')[0];
+
+    // Strip any existing frontmatter to get the body
+    const body = post.content.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, '').trimStart();
+
+    let frontmatter = `---\ntitle: ${post.title}\ndate: ${date}`;
+    if (tags.length > 0) {
+        frontmatter += `\ntags: [${tags.join(', ')}]`;
+    }
+    frontmatter += '\n---\n\n';
+
+    return frontmatter + body;
+}
+
+// Trigger a browser download of the post as a .md file
+function downloadPost(post) {
+    const content = generateMarkdownFile(post);
+    const slug = post.slug || post.title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+    const filename = slug + '.md';
+
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 // Highlight matching text
 function highlightText(text, query) {
     if (!query) return text;
@@ -132,6 +166,7 @@ function renderPosts() {
                 ` : ''}
                 <div class="post-actions">
                     <a href="editor.html?id=${post.id}" class="btn btn-sm">Edit</a>
+                    <button class="btn btn-sm btn-download" data-id="${post.id}" title="Download as markdown file">↓ .md</button>
                     <button class="btn btn-sm btn-delete" data-id="${post.id}">Delete</button>
                 </div>
             </li>
@@ -185,6 +220,15 @@ function attachEventListeners() {
         });
     });
     
+    // Download buttons
+    document.querySelectorAll('.btn-download').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = e.target.dataset.id;
+            const post = storage.getPost(id);
+            if (post) downloadPost(post);
+        });
+    });
+
     // Tag clicks
     document.querySelectorAll('.tag').forEach(tag => {
         tag.addEventListener('click', (e) => {
