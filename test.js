@@ -198,6 +198,53 @@ assertEquals(noFilters.length, 2, 'Should return all posts when no filters appli
 const caseInsensitive = filterPosts(testPosts, 'javascript', null);
 assertEquals(caseInsensitive.length, 1, 'Should perform case-insensitive search');
 
+// ── renderPreview helpers ──────────────────────────────────────────────────────
+
+// Mirror the stripFrontmatter function from editor.js
+function stripFrontmatter(content) {
+    return content.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, '');
+}
+
+// Detect language tag from an opening code fence (mirrors hljs language lookup)
+function detectCodeFenceLanguage(fence) {
+    const match = fence.match(/^```(\w+)/);
+    return match ? match[1] : null;
+}
+
+// Test 13: stripFrontmatter removes YAML frontmatter
+const contentWithFrontmatter = `---
+title: My Post
+tags: [js]
+---
+
+# Hello
+
+World`;
+assertEquals(stripFrontmatter(contentWithFrontmatter).trim(), '# Hello\n\nWorld',
+    'stripFrontmatter should remove YAML frontmatter block');
+
+// Test 14: stripFrontmatter is a no-op when there is no frontmatter
+const contentNoFm = '# Heading\n\nParagraph.';
+assertEquals(stripFrontmatter(contentNoFm), contentNoFm,
+    'stripFrontmatter should leave content without frontmatter unchanged');
+
+// Test 15: stripFrontmatter preserves fenced code blocks
+const contentWithCode = `# Title
+
+\`\`\`javascript
+const x = 1;
+\`\`\``;
+assert(stripFrontmatter(contentWithCode).includes('```javascript'),
+    'stripFrontmatter should preserve fenced code blocks');
+
+// Test 16: detectCodeFenceLanguage returns the language tag
+assertEquals(detectCodeFenceLanguage('```javascript'), 'javascript',
+    'Should detect javascript from code fence');
+assertEquals(detectCodeFenceLanguage('```python'), 'python',
+    'Should detect python from code fence');
+assertEquals(detectCodeFenceLanguage('```'), null,
+    'Should return null for code fence without language tag');
+
 // Summary
 const passed = results.filter(r => r.passed).length;
 const failed = results.filter(r => !r.passed).length;
