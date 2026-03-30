@@ -86,6 +86,25 @@ function downloadPost(post) {
     URL.revokeObjectURL(url);
 }
 
+// Calculate word count from post content (excluding frontmatter)
+function getWordCount(content) {
+    const withoutFrontmatter = content.replace(/^---\s*\n[\s\S]*?\n---\s*\n/, '');
+    const plainText = withoutFrontmatter
+        .replace(/#{1,6}\s+/g, ' ')
+        .replace(/[*_`~]/g, '')
+        .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!plainText) return 0;
+    return plainText.split(' ').filter(w => w.length > 0).length;
+}
+
+// Estimate reading time at 200 words per minute
+function getReadingTime(wordCount) {
+    if (wordCount < 200) return '< 1 min read';
+    return `${Math.ceil(wordCount / 200)} min read`;
+}
+
 // Highlight matching text
 function highlightText(text, query) {
     if (!query) return text;
@@ -143,18 +162,21 @@ function renderPosts() {
         const excerpt = generateExcerpt(post.content);
         const highlightedTitle = highlightText(post.title, searchQuery);
         const highlightedExcerpt = highlightText(excerpt, searchQuery);
-        
+        const wordCount = getWordCount(post.content);
+        const readingTime = getReadingTime(wordCount);
+
         return `
             <li class="post-item">
                 <div class="post-header">
                     <div>
                         <div class="post-title">${highlightedTitle}</div>
-                        <div class="post-date">${new Date(post.date).toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
+                        <div class="post-date">${new Date(post.date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
                         })}</div>
                     </div>
+                    <div class="post-meta" title="${wordCount} words · estimated at 200 words per minute">${wordCount} words · ${readingTime}</div>
                 </div>
                 <div class="post-excerpt">${highlightedExcerpt}</div>
                 ${tags.length > 0 ? `

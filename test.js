@@ -245,6 +245,61 @@ assertEquals(detectCodeFenceLanguage('```python'), 'python',
 assertEquals(detectCodeFenceLanguage('```'), null,
     'Should return null for code fence without language tag');
 
+// ── getWordCount & getReadingTime ──────────────────────────────────────────────
+
+function getWordCount(content) {
+    const withoutFrontmatter = content.replace(/^---\s*\n[\s\S]*?\n---\s*\n/, '');
+    const plainText = withoutFrontmatter
+        .replace(/#{1,6}\s+/g, ' ')
+        .replace(/[*_`~]/g, '')
+        .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!plainText) return 0;
+    return plainText.split(' ').filter(w => w.length > 0).length;
+}
+
+function getReadingTime(wordCount) {
+    if (wordCount < 200) return '< 1 min read';
+    return `${Math.ceil(wordCount / 200)} min read`;
+}
+
+// Test 17: getWordCount ignores frontmatter
+const postWithFm = `---
+title: Test
+tags: [a, b]
+---
+
+Hello world this is a test.`;
+assertEquals(getWordCount(postWithFm), 6, 'getWordCount should exclude frontmatter words');
+
+// Test 18: getWordCount strips markdown syntax
+// "Heading One Bold and italic and a link content." = 9 words after stripping
+const postWithMarkdown = `# Heading One
+
+**Bold** and *italic* and [a link](https://example.com) content.`;
+assertEquals(getWordCount(postWithMarkdown), 9, 'getWordCount should strip markdown syntax');
+
+// Test 19: getWordCount returns 0 for empty content
+assertEquals(getWordCount(''), 0, 'getWordCount should return 0 for empty content');
+
+// Test 20: getWordCount returns 0 for frontmatter-only content
+const fmOnly = `---
+title: Empty
+---
+`;
+assertEquals(getWordCount(fmOnly), 0, 'getWordCount should return 0 for frontmatter-only content');
+
+// Test 21: getReadingTime returns "< 1 min read" for very short posts
+assertEquals(getReadingTime(0), '< 1 min read', 'getReadingTime should return "< 1 min read" for 0 words');
+assertEquals(getReadingTime(50), '< 1 min read', 'getReadingTime should return "< 1 min read" for 50 words');
+
+// Test 22: getReadingTime rounds up to nearest minute
+assertEquals(getReadingTime(200), '1 min read', 'getReadingTime should return "1 min read" for exactly 200 words');
+assertEquals(getReadingTime(201), '2 min read', 'getReadingTime should ceil to 2 min for 201 words');
+assertEquals(getReadingTime(400), '2 min read', 'getReadingTime should return "2 min read" for 400 words');
+assertEquals(getReadingTime(1000), '5 min read', 'getReadingTime should return "5 min read" for 1000 words');
+
 // Summary
 const passed = results.filter(r => r.passed).length;
 const failed = results.filter(r => !r.passed).length;
