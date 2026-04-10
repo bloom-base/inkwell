@@ -179,13 +179,12 @@ function renderPosts() {
                     <div class="post-meta" title="${wordCount} words · estimated at 200 words per minute">${wordCount} words · ${readingTime}</div>
                 </div>
                 <div class="post-excerpt">${highlightedExcerpt}</div>
-                ${tags.length > 0 ? `
-                    <div class="post-tags">
-                        ${tags.map(tag => `
-                            <span class="tag ${activeTag === tag ? 'active' : ''}" data-tag="${tag}">${tag}</span>
-                        `).join('')}
-                    </div>
-                ` : ''}
+                <div class="post-tags">
+                    <span class="post-word-count">${wordCount.toLocaleString()} words</span>
+                    ${tags.map(tag => `
+                        <span class="tag ${activeTag === tag ? 'active' : ''}" data-tag="${tag}">${tag}</span>
+                    `).join('')}
+                </div>
                 <div class="post-actions">
                     <a href="editor.html?id=${post.id}" class="btn btn-sm">Edit</a>
                     <button class="btn btn-sm btn-download" data-id="${post.id}" title="Download as markdown file">↓ .md</button>
