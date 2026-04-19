@@ -4,20 +4,63 @@ const storage = {
         const posts = localStorage.getItem('inkwell_posts');
         return posts ? JSON.parse(posts) : [];
     },
-    
+
     savePosts(posts) {
         localStorage.setItem('inkwell_posts', JSON.stringify(posts));
     },
-    
+
     getPost(id) {
         const posts = this.getPosts();
         return posts.find(p => p.id === id);
     },
-    
+
     deletePost(id) {
         const posts = this.getPosts();
         const filtered = posts.filter(p => p.id !== id);
         this.savePosts(filtered);
+        readStatus.remove(id);
+    }
+};
+
+// Read status utilities — stores { postId: lastReadTimestamp } in localStorage
+const readStatus = {
+    _key: 'inkwell_read_status',
+
+    getAll() {
+        const data = localStorage.getItem(this._key);
+        return data ? JSON.parse(data) : {};
+    },
+
+    isRead(postId) {
+        const all = this.getAll();
+        return all.hasOwnProperty(postId);
+    },
+
+    getTimestamp(postId) {
+        const all = this.getAll();
+        return all[postId] || null;
+    },
+
+    markRead(postId) {
+        const all = this.getAll();
+        all[postId] = Date.now();
+        localStorage.setItem(this._key, JSON.stringify(all));
+    },
+
+    markUnread(postId) {
+        const all = this.getAll();
+        delete all[postId];
+        localStorage.setItem(this._key, JSON.stringify(all));
+    },
+
+    remove(postId) {
+        this.markUnread(postId);
+    },
+
+    isUpdatedSinceRead(postId, postDate) {
+        const readTime = this.getTimestamp(postId);
+        if (!readTime) return false;
+        return new Date(postDate).getTime() > readTime;
     }
 };
 
@@ -118,6 +161,7 @@ let allPosts = [];
 let filteredPosts = [];
 let activeTag = null;
 let searchQuery = '';
+let showUnreadOnly = false;
 
 // Render posts
 function renderPosts() {
@@ -142,15 +186,12 @@ function renderPosts() {
     postList.style.display = 'block';
     
     // Update filter info
-    if (searchQuery || activeTag) {
-        let infoText = '';
-        if (searchQuery && activeTag) {
-            infoText = `Showing ${filteredPosts.length} post(s) matching "${searchQuery}" with tag "${activeTag}"`;
-        } else if (searchQuery) {
-            infoText = `Showing ${filteredPosts.length} post(s) matching "${searchQuery}"`;
-        } else if (activeTag) {
-            infoText = `Showing ${filteredPosts.length} post(s) tagged "${activeTag}"`;
-        }
+    if (searchQuery || activeTag || showUnreadOnly) {
+        const parts = [];
+        if (searchQuery) parts.push(`matching "${searchQuery}"`);
+        if (activeTag) parts.push(`tagged "${activeTag}"`);
+        if (showUnreadOnly) parts.push('unread only');
+        const infoText = `Showing ${filteredPosts.length} post(s)` + (parts.length ? ' — ' + parts.join(', ') : '');
         filterInfo.textContent = infoText;
         filterInfo.classList.add('visible');
     } else {
@@ -164,12 +205,16 @@ function renderPosts() {
         const highlightedExcerpt = highlightText(excerpt, searchQuery);
         const wordCount = getWordCount(post.content);
         const readingTime = getReadingTime(wordCount);
+        const isUnread = !readStatus.isRead(post.id);
+        const updatedSinceRead = readStatus.isUpdatedSinceRead(post.id, post.date);
+        const showIndicator = isUnread || updatedSinceRead;
+        const indicatorLabel = updatedSinceRead ? 'Updated' : 'Unread';
 
         return `
-            <li class="post-item">
+            <li class="post-item${showIndicator ? ' post-unread' : ''}">
                 <div class="post-header">
                     <div>
-                        <div class="post-title">${highlightedTitle}</div>
+                        <div class="post-title">${showIndicator ? '<span class="unread-dot" title="' + indicatorLabel + '"></span>' : ''}${highlightedTitle}</div>
                         <div class="post-date">${new Date(post.date).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'long',
@@ -207,24 +252,31 @@ function filterPosts() {
             const contentMatch = post.content.toLowerCase().includes(searchQuery.toLowerCase());
             if (!titleMatch && !contentMatch) return false;
         }
-        
+
         // Filter by tag
         if (activeTag) {
             const tags = extractTags(post.content);
             if (!tags.includes(activeTag)) return false;
         }
-        
+
+        // Filter by unread status
+        if (showUnreadOnly) {
+            const isUnread = !readStatus.isRead(post.id);
+            const updatedSinceRead = readStatus.isUpdatedSinceRead(post.id, post.date);
+            if (!isUnread && !updatedSinceRead) return false;
+        }
+
         return true;
     });
-    
+
     // Update clear filters button
     const clearFilters = document.getElementById('clearFilters');
-    if (searchQuery || activeTag) {
+    if (searchQuery || activeTag || showUnreadOnly) {
         clearFilters.classList.add('visible');
     } else {
         clearFilters.classList.remove('visible');
     }
-    
+
     renderPosts();
 }
 
@@ -286,9 +338,22 @@ document.addEventListener('DOMContentLoaded', () => {
     clearFilters.addEventListener('click', () => {
         searchQuery = '';
         activeTag = null;
+        showUnreadOnly = false;
         searchInput.value = '';
+        const unreadToggle = document.getElementById('unreadToggle');
+        if (unreadToggle) unreadToggle.classList.remove('active');
         filterPosts();
     });
+
+    // Unread filter toggle
+    const unreadToggle = document.getElementById('unreadToggle');
+    if (unreadToggle) {
+        unreadToggle.addEventListener('click', () => {
+            showUnreadOnly = !showUnreadOnly;
+            unreadToggle.classList.toggle('active', showUnreadOnly);
+            filterPosts();
+        });
+    }
     
     // Load posts
     loadPosts();

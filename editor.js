@@ -30,6 +30,43 @@ const storage = {
     }
 };
 
+// Read status utilities
+const readStatus = {
+    _key: 'inkwell_read_status',
+
+    getAll() {
+        const data = localStorage.getItem(this._key);
+        return data ? JSON.parse(data) : {};
+    },
+
+    isRead(postId) {
+        const all = this.getAll();
+        return all.hasOwnProperty(postId);
+    },
+
+    markRead(postId) {
+        const all = this.getAll();
+        all[postId] = Date.now();
+        localStorage.setItem(this._key, JSON.stringify(all));
+    },
+
+    markUnread(postId) {
+        const all = this.getAll();
+        delete all[postId];
+        localStorage.setItem(this._key, JSON.stringify(all));
+    },
+
+    toggle(postId) {
+        if (this.isRead(postId)) {
+            this.markUnread(postId);
+            return false;
+        } else {
+            this.markRead(postId);
+            return true;
+        }
+    }
+};
+
 // Generate slug from title
 function generateSlug(title) {
     return title
@@ -93,6 +130,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageTitle = document.getElementById('pageTitle');
     const saveBtn = document.getElementById('saveBtn');
 
+    const readToggleBtn = document.getElementById('readToggleBtn');
+
+    // Update the read toggle button label
+    function updateReadToggle() {
+        if (!readToggleBtn || !postId) return;
+        const isRead = readStatus.isRead(postId);
+        readToggleBtn.textContent = isRead ? 'Mark as Unread' : 'Mark as Read';
+        readToggleBtn.title = isRead ? 'Mark this post as unread' : 'Mark this post as read';
+    }
+
     // If editing, load the post
     if (postId) {
         const post = storage.getPost(postId);
@@ -102,6 +149,19 @@ document.addEventListener('DOMContentLoaded', () => {
             titleInput.value = post.title;
             contentInput.value = post.content;
             renderPreview(post.content);
+
+            // Mark the post as read when opened
+            readStatus.markRead(postId);
+
+            // Show and wire up the read toggle button
+            if (readToggleBtn) {
+                readToggleBtn.style.display = 'inline-block';
+                updateReadToggle();
+                readToggleBtn.addEventListener('click', () => {
+                    readStatus.toggle(postId);
+                    updateReadToggle();
+                });
+            }
         } else {
             alert('Post not found');
             window.location.href = 'manage.html';
@@ -132,16 +192,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 content,
                 date: new Date().toISOString()
             });
+            // Re-mark as read after saving
+            readStatus.markRead(postId);
         } else {
             // Create new post
+            const newId = Date.now().toString();
             const post = {
-                id: Date.now().toString(),
+                id: newId,
                 title,
                 slug: generateSlug(title),
                 content,
                 date: new Date().toISOString()
             };
             storage.addPost(post);
+            // Mark new post as read immediately
+            readStatus.markRead(newId);
         }
 
         window.location.href = 'manage.html';
