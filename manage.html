@@ -234,6 +234,42 @@
         .filter-info.visible {
             display: block;
         }
+        /* Unread post indicators */
+        .post-item.post-unread {
+            border-left: 3px solid #171717;
+        }
+        .unread-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #171717;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            vertical-align: middle;
+            position: relative;
+            top: -1px;
+        }
+        .unread-toggle {
+            padding: 0.75rem 1rem;
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #737373;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .unread-toggle:hover {
+            border-color: #171717;
+            color: #171717;
+        }
+        .unread-toggle.active {
+            background: #171717;
+            color: white;
+            border-color: #171717;
+        }
     </style>
 </head>
 <body>
@@ -244,12 +280,13 @@
         </header>
 
         <div class="search-bar">
-            <input 
-                type="text" 
-                class="search-input" 
-                id="searchInput" 
+            <input
+                type="text"
+                class="search-input"
+                id="searchInput"
                 placeholder="Search posts by title or content..."
             >
+            <button class="unread-toggle" id="unreadToggle" title="Show unread posts only">Unread</button>
             <button class="clear-filters" id="clearFilters">Clear Filters</button>
         </div>
 

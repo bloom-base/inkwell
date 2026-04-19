@@ -300,6 +300,108 @@ assertEquals(getReadingTime(201), '2 min read', 'getReadingTime should ceil to 2
 assertEquals(getReadingTime(400), '2 min read', 'getReadingTime should return "2 min read" for 400 words');
 assertEquals(getReadingTime(1000), '5 min read', 'getReadingTime should return "5 min read" for 1000 words');
 
+// ── Read status utilities (pure-logic tests) ──────────────────────────────────
+
+// Simulate a minimal readStatus store for testing (mirrors manage.js / editor.js)
+function createReadStatusStore() {
+    let data = {};
+    return {
+        getAll()           { return { ...data }; },
+        isRead(id)         { return data.hasOwnProperty(id); },
+        getTimestamp(id)   { return data[id] || null; },
+        markRead(id)       { data[id] = Date.now(); },
+        markUnread(id)     { delete data[id]; },
+        remove(id)         { delete data[id]; },
+        toggle(id) {
+            if (this.isRead(id)) { this.markUnread(id); return false; }
+            else { this.markRead(id); return true; }
+        },
+        isUpdatedSinceRead(id, postDate) {
+            const readTime = this.getTimestamp(id);
+            if (!readTime) return false;
+            return new Date(postDate).getTime() > readTime;
+        }
+    };
+}
+
+// Test 23: New post is unread by default
+const rs1 = createReadStatusStore();
+assert(!rs1.isRead('post-1'), 'New post should be unread by default');
+
+// Test 24: markRead sets a post as read
+rs1.markRead('post-1');
+assert(rs1.isRead('post-1'), 'Post should be read after markRead');
+
+// Test 25: markUnread clears read status
+rs1.markUnread('post-1');
+assert(!rs1.isRead('post-1'), 'Post should be unread after markUnread');
+
+// Test 26: toggle switches read ↔ unread
+const rs2 = createReadStatusStore();
+const firstToggle = rs2.toggle('post-2');
+assert(firstToggle === true, 'toggle should return true when marking as read');
+assert(rs2.isRead('post-2'), 'Post should be read after first toggle');
+const secondToggle = rs2.toggle('post-2');
+assert(secondToggle === false, 'toggle should return false when marking as unread');
+assert(!rs2.isRead('post-2'), 'Post should be unread after second toggle');
+
+// Test 27: remove cleans up read status (used on post delete)
+const rs3 = createReadStatusStore();
+rs3.markRead('post-3');
+rs3.remove('post-3');
+assert(!rs3.isRead('post-3'), 'Post should be unread after remove');
+
+// Test 28: isUpdatedSinceRead detects post edited after last read
+const rs4 = createReadStatusStore();
+// Simulate: read the post, then the post date is set to a future time
+rs4.markRead('post-4');
+const futureDate = new Date(Date.now() + 60000).toISOString();
+assert(rs4.isUpdatedSinceRead('post-4', futureDate), 'Should detect post updated after last read');
+
+// Test 29: isUpdatedSinceRead returns false for never-read post
+assert(!rs4.isUpdatedSinceRead('post-never', futureDate), 'Should return false for never-read post');
+
+// Test 30: isUpdatedSinceRead returns false when post not updated since read
+const rs5 = createReadStatusStore();
+const pastDate = new Date(Date.now() - 60000).toISOString();
+rs5.markRead('post-5');
+assert(!rs5.isUpdatedSinceRead('post-5', pastDate), 'Should return false when post date is before read time');
+
+// Test 31: getTimestamp returns null for unread post
+const rs6 = createReadStatusStore();
+assertEquals(rs6.getTimestamp('nope'), null, 'getTimestamp should return null for unread post');
+
+// Test 32: getTimestamp returns a number after markRead
+rs6.markRead('post-6');
+assert(typeof rs6.getTimestamp('post-6') === 'number', 'getTimestamp should return a number after markRead');
+
+// Test 33: filterPosts with unread-only flag
+function filterPostsWithReadStatus(posts, searchQuery, activeTag, unreadOnly, readStatusStore) {
+    return posts.filter(post => {
+        if (searchQuery) {
+            const titleMatch = post.title.toLowerCase().includes(searchQuery.toLowerCase());
+            const contentMatch = post.content.toLowerCase().includes(searchQuery.toLowerCase());
+            if (!titleMatch && !contentMatch) return false;
+        }
+        if (activeTag) {
+            const tags = extractTags(post.content);
+            if (!tags.includes(activeTag)) return false;
+        }
+        if (unreadOnly) {
+            const isUnread = !readStatusStore.isRead(post.id);
+            const updatedSinceRead = readStatusStore.isUpdatedSinceRead(post.id, post.date);
+            if (!isUnread && !updatedSinceRead) return false;
+        }
+        return true;
+    });
+}
+
+const rsFilter = createReadStatusStore();
+rsFilter.markRead('1'); // Mark first post as read
+const unreadFiltered = filterPostsWithReadStatus(testPosts, '', null, true, rsFilter);
+assertEquals(unreadFiltered.length, 1, 'Unread-only filter should exclude read posts');
+assertEquals(unreadFiltered[0].id, '2', 'Unread-only filter should return unread post');
+
 // Summary
 const passed = results.filter(r => r.passed).length;
 const failed = results.filter(r => !r.passed).length;
