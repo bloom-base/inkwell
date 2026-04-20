@@ -120,6 +120,42 @@ function renderPreview(markdown) {
     }
 }
 
+// Word count stats utilities
+function getEditorStats(text) {
+    const body = stripFrontmatter(text);
+
+    const chars = body.length;
+
+    const trimmed = body.trim();
+    const words = trimmed === '' ? 0 : trimmed.split(/\s+/).length;
+
+    // Paragraphs: non-empty lines separated by blank lines
+    const paragraphs = trimmed === '' ? 0 :
+        trimmed.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+
+    const readingMinutes = Math.max(1, Math.ceil(words / 200));
+    const readTime = words === 0 ? '0 min' : readingMinutes + ' min';
+
+    return { chars, words, paragraphs, readTime };
+}
+
+function updateStats(text) {
+    const stats = getEditorStats(text);
+    const statsBar = document.getElementById('statsBar');
+    if (!statsBar) return;
+
+    document.getElementById('statChars').textContent = stats.chars.toLocaleString();
+    document.getElementById('statWords').textContent = stats.words.toLocaleString();
+    document.getElementById('statParagraphs').textContent = stats.paragraphs;
+    document.getElementById('statReadTime').textContent = stats.readTime;
+
+    if (stats.words > 5000) {
+        statsBar.classList.add('warning');
+    } else {
+        statsBar.classList.remove('warning');
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -168,10 +204,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Live preview: update on every keystroke
+    // Live preview and stats: update on every keystroke
     contentInput.addEventListener('input', () => {
         renderPreview(contentInput.value);
+        updateStats(contentInput.value);
     });
+
+    // Initial stats update
+    updateStats(contentInput.value);
 
     // Form submission
     form.addEventListener('submit', (e) => {

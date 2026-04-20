@@ -402,6 +402,63 @@ const unreadFiltered = filterPostsWithReadStatus(testPosts, '', null, true, rsFi
 assertEquals(unreadFiltered.length, 1, 'Unread-only filter should exclude read posts');
 assertEquals(unreadFiltered[0].id, '2', 'Unread-only filter should return unread post');
 
+// ============================================================
+// Editor stats tests (getEditorStats)
+// ============================================================
+
+function stripFrontmatter(content) {
+    return content.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, '');
+}
+
+function getEditorStats(text) {
+    const body = stripFrontmatter(text);
+    const chars = body.length;
+    const trimmed = body.trim();
+    const words = trimmed === '' ? 0 : trimmed.split(/\s+/).length;
+    const paragraphs = trimmed === '' ? 0 :
+        trimmed.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+    const readingMinutes = Math.max(1, Math.ceil(words / 200));
+    const readTime = words === 0 ? '0 min' : readingMinutes + ' min';
+    return { chars, words, paragraphs, readTime };
+}
+
+// Empty content
+const emptyStats = getEditorStats('');
+assertEquals(emptyStats.chars, 0, 'Empty content: 0 chars');
+assertEquals(emptyStats.words, 0, 'Empty content: 0 words');
+assertEquals(emptyStats.paragraphs, 0, 'Empty content: 0 paragraphs');
+assertEquals(emptyStats.readTime, '0 min', 'Empty content: 0 min reading time');
+
+// Simple sentence
+const simpleStats = getEditorStats('Hello world');
+assertEquals(simpleStats.chars, 11, 'Simple text: correct char count');
+assertEquals(simpleStats.words, 2, 'Simple text: correct word count');
+assertEquals(simpleStats.paragraphs, 1, 'Simple text: 1 paragraph');
+assertEquals(simpleStats.readTime, '1 min', 'Simple text: 1 min reading time');
+
+// Multiple paragraphs
+const multiPara = 'First paragraph.\n\nSecond paragraph.\n\nThird paragraph.';
+const multiStats = getEditorStats(multiPara);
+assertEquals(multiStats.words, 6, 'Multi-paragraph: correct word count');
+assertEquals(multiStats.paragraphs, 3, 'Multi-paragraph: 3 paragraphs');
+
+// Content with frontmatter should exclude frontmatter from stats
+const withFrontmatter = '---\ntitle: Test\ntags: [a, b]\n---\nHello world again';
+const fmStats = getEditorStats(withFrontmatter);
+assertEquals(fmStats.words, 3, 'Frontmatter stripped: only body words counted');
+assertEquals(fmStats.paragraphs, 1, 'Frontmatter stripped: 1 paragraph');
+
+// Reading time calculation (over 200 words)
+const longText = Array(250).fill('word').join(' ');
+const longStats = getEditorStats(longText);
+assertEquals(longStats.words, 250, 'Long text: 250 words');
+assertEquals(longStats.readTime, '2 min', 'Long text: 2 min reading time');
+
+// Warning threshold check (over 5000 words)
+const hugeText = Array(5001).fill('word').join(' ');
+const hugeStats = getEditorStats(hugeText);
+assert(hugeStats.words > 5000, 'Huge text exceeds 5000 word threshold');
+
 // Summary
 const passed = results.filter(r => r.passed).length;
 const failed = results.filter(r => !r.passed).length;
