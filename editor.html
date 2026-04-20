@@ -227,6 +227,44 @@
             background: #f5f5f5;
             border-color: #a3a3a3;
         }
+        /* Stats bar */
+        .stats-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 1.5rem;
+            background: #f5f5f5;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #737373;
+        }
+        .stats-bar .stat {
+            white-space: nowrap;
+        }
+        .stats-bar .stat-label {
+            color: #a3a3a3;
+            margin-right: 0.25rem;
+        }
+        .stats-bar .stat-value {
+            color: #525252;
+            font-weight: 500;
+        }
+        .stats-bar .stat-divider {
+            width: 1px;
+            height: 0.875rem;
+            background: #d4d4d4;
+        }
+        .stats-bar.warning .stat-value {
+            color: #b45309;
+        }
+        .stats-bar.warning {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
     </style>
 </head>
 <body>
@@ -268,6 +306,16 @@ console.log('hello world');
                         <p class="preview-placeholder">Preview will appear here…</p>
                     </div>
                 </div>
+            </div>
+
+            <div class="stats-bar" id="statsBar">
+                <span class="stat"><span class="stat-label">chars</span><span class="stat-value" id="statChars">0</span></span>
+                <span class="stat-divider"></span>
+                <span class="stat"><span class="stat-label">words</span><span class="stat-value" id="statWords">0</span></span>
+                <span class="stat-divider"></span>
+                <span class="stat"><span class="stat-label">paragraphs</span><span class="stat-value" id="statParagraphs">0</span></span>
+                <span class="stat-divider"></span>
+                <span class="stat"><span class="stat-label">reading time</span><span class="stat-value" id="statReadTime">0 min</span></span>
             </div>
 
             <div class="actions">
