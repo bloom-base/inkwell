@@ -270,6 +270,83 @@
             color: white;
             border-color: #171717;
         }
+
+        /* Word count distribution chart */
+        .distribution-chart {
+            display: none;
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .distribution-chart.visible {
+            display: block;
+        }
+        .distribution-chart-title {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #a3a3a3;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+        .distribution-bars {
+            display: flex;
+            gap: 0.75rem;
+            align-items: end;
+            margin-bottom: 0.75rem;
+        }
+        .distribution-bar-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.375rem;
+        }
+        .distribution-bar-track {
+            height: 8px;
+            background: #f5f5f5;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .distribution-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.4s ease;
+            min-width: 0;
+        }
+        .distribution-bar-fill.bar-short {
+            background: #a3a3a3;
+        }
+        .distribution-bar-fill.bar-medium {
+            background: #525252;
+        }
+        .distribution-bar-fill.bar-long {
+            background: #171717;
+        }
+        .distribution-bar-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .distribution-bar-label-text {
+            font-size: 0.75rem;
+            color: #525252;
+            font-weight: 500;
+        }
+        .distribution-bar-count {
+            font-size: 0.75rem;
+            color: #a3a3a3;
+            font-variant-numeric: tabular-nums;
+        }
+        .distribution-insight {
+            font-size: 0.8125rem;
+            color: #737373;
+            padding-top: 0.25rem;
+            border-top: 1px solid #f5f5f5;
+            padding-top: 0.625rem;
+        }
     </style>
 </head>
 <body>
@@ -291,6 +368,8 @@
         </div>
 
         <div class="filter-info" id="filterInfo"></div>
+
+        <div class="distribution-chart" id="distributionChart"></div>
 
         <ul class="post-list" id="postList">
             <!-- Posts will be rendered here -->
