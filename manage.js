@@ -163,6 +163,78 @@ let activeTag = null;
 let searchQuery = '';
 let showUnreadOnly = false;
 
+// Render the word count distribution chart
+function renderDistributionChart() {
+    const chart = document.getElementById('distributionChart');
+    if (!chart) return;
+
+    if (allPosts.length === 0) {
+        chart.classList.remove('visible');
+        return;
+    }
+
+    let shortCount = 0;
+    let mediumCount = 0;
+    let longCount = 0;
+
+    allPosts.forEach(post => {
+        const wc = getWordCount(post.content);
+        if (wc < 500) shortCount++;
+        else if (wc < 1500) mediumCount++;
+        else longCount++;
+    });
+
+    const total = allPosts.length;
+    const shortPct = Math.round((shortCount / total) * 100);
+    const mediumPct = Math.round((mediumCount / total) * 100);
+    const longPct = Math.round((longCount / total) * 100);
+
+    // Determine dominant category for insight
+    let insight = '';
+    if (shortCount >= mediumCount && shortCount >= longCount) {
+        insight = 'You write mostly <strong>short</strong> posts';
+    } else if (mediumCount >= shortCount && mediumCount >= longCount) {
+        insight = 'You write mostly <strong>medium-length</strong> posts';
+    } else {
+        insight = 'You write mostly <strong>long</strong> posts';
+    }
+
+    chart.innerHTML = `
+        <div class="distribution-chart-title">Writing distribution</div>
+        <div class="distribution-bars">
+            <div class="distribution-bar-group">
+                <div class="distribution-bar-label">
+                    <span class="distribution-bar-label-text">Short</span>
+                    <span class="distribution-bar-count">${shortCount} post${shortCount !== 1 ? 's' : ''} · ${shortPct}%</span>
+                </div>
+                <div class="distribution-bar-track">
+                    <div class="distribution-bar-fill bar-short" style="width: ${shortPct}%"></div>
+                </div>
+            </div>
+            <div class="distribution-bar-group">
+                <div class="distribution-bar-label">
+                    <span class="distribution-bar-label-text">Medium</span>
+                    <span class="distribution-bar-count">${mediumCount} post${mediumCount !== 1 ? 's' : ''} · ${mediumPct}%</span>
+                </div>
+                <div class="distribution-bar-track">
+                    <div class="distribution-bar-fill bar-medium" style="width: ${mediumPct}%"></div>
+                </div>
+            </div>
+            <div class="distribution-bar-group">
+                <div class="distribution-bar-label">
+                    <span class="distribution-bar-label-text">Long</span>
+                    <span class="distribution-bar-count">${longCount} post${longCount !== 1 ? 's' : ''} · ${longPct}%</span>
+                </div>
+                <div class="distribution-bar-track">
+                    <div class="distribution-bar-fill bar-long" style="width: ${longPct}%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="distribution-insight">${insight} · <span style="color: #a3a3a3">0–500 words short · 500–1500 medium · 1500+ long</span></div>
+    `;
+    chart.classList.add('visible');
+}
+
 // Render posts
 function renderPosts() {
     const postList = document.getElementById('postList');
@@ -321,6 +393,7 @@ function loadPosts() {
     allPosts = storage.getPosts();
     // Sort by date descending
     allPosts.sort((a, b) => new Date(b.date) - new Date(a.date));
+    renderDistributionChart();
     filterPosts();
 }
 

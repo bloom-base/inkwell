@@ -459,6 +459,60 @@ const hugeText = Array(5001).fill('word').join(' ');
 const hugeStats = getEditorStats(hugeText);
 assert(hugeStats.words > 5000, 'Huge text exceeds 5000 word threshold');
 
+// ==========================================
+// Word Count Distribution Tests
+// ==========================================
+console.log('\n--- Word Count Distribution ---');
+
+function categorizeWordCount(wc) {
+    if (wc < 500) return 'short';
+    if (wc < 1500) return 'medium';
+    return 'long';
+}
+
+assertEquals(categorizeWordCount(0), 'short', 'Distribution: 0 words is short');
+assertEquals(categorizeWordCount(499), 'short', 'Distribution: 499 words is short');
+assertEquals(categorizeWordCount(500), 'medium', 'Distribution: 500 words is medium');
+assertEquals(categorizeWordCount(1499), 'medium', 'Distribution: 1499 words is medium');
+assertEquals(categorizeWordCount(1500), 'long', 'Distribution: 1500 words is long');
+assertEquals(categorizeWordCount(5000), 'long', 'Distribution: 5000 words is long');
+
+// Test distribution calculation
+function getDistribution(posts) {
+    let short = 0, medium = 0, long = 0;
+    posts.forEach(p => {
+        const wc = getWordCount(p.content);
+        if (wc < 500) short++;
+        else if (wc < 1500) medium++;
+        else long++;
+    });
+    return { short, medium, long };
+}
+
+const distPosts = [
+    { content: 'Hello world' },
+    { content: Array(600).fill('word').join(' ') },
+    { content: Array(2000).fill('word').join(' ') },
+    { content: 'Short post' }
+];
+
+const dist = getDistribution(distPosts);
+assertEquals(dist.short, 2, 'Distribution: 2 short posts');
+assertEquals(dist.medium, 1, 'Distribution: 1 medium post');
+assertEquals(dist.long, 1, 'Distribution: 1 long post');
+
+// Test dominant category insight
+function getDominant(dist) {
+    if (dist.short >= dist.medium && dist.short >= dist.long) return 'short';
+    if (dist.medium >= dist.short && dist.medium >= dist.long) return 'medium';
+    return 'long';
+}
+
+assertEquals(getDominant({ short: 3, medium: 1, long: 0 }), 'short', 'Insight: dominant is short');
+assertEquals(getDominant({ short: 1, medium: 3, long: 2 }), 'medium', 'Insight: dominant is medium');
+assertEquals(getDominant({ short: 0, medium: 1, long: 5 }), 'long', 'Insight: dominant is long');
+assertEquals(getDominant({ short: 2, medium: 2, long: 0 }), 'short', 'Insight: tie defaults to shorter category');
+
 // Summary
 const passed = results.filter(r => r.passed).length;
 const failed = results.filter(r => !r.passed).length;
