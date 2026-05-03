@@ -148,6 +148,41 @@ function getReadingTime(wordCount) {
     return `${Math.ceil(wordCount / 200)} min read`;
 }
 
+// Format a timestamp as a human-readable relative time string
+function formatRelativeTime(dateString) {
+    const now = Date.now();
+    const then = new Date(dateString).getTime();
+    const seconds = Math.round((now - then) / 1000);
+
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes === 1) return '1 minute ago';
+    if (minutes < 60) return `${minutes} minutes ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours === 1) return '1 hour ago';
+    if (hours < 24) return `${hours} hours ago`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return 'yesterday';
+    if (days < 30) return `${days} days ago`;
+    const months = Math.floor(days / 30);
+    if (months === 1) return '1 month ago';
+    if (months < 12) return `${months} months ago`;
+    const years = Math.floor(months / 12);
+    if (years === 1) return '1 year ago';
+    return `${years} years ago`;
+}
+
+// Format a timestamp as a full date/time string for tooltips
+function formatFullDate(dateString) {
+    return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+}
+
 // Highlight matching text
 function highlightText(text, query) {
     if (!query) return text;
@@ -282,16 +317,16 @@ function renderPosts() {
         const showIndicator = isUnread || updatedSinceRead;
         const indicatorLabel = updatedSinceRead ? 'Updated' : 'Unread';
 
+        const createdDate = post.created || post.date;
+        const relativeTime = formatRelativeTime(createdDate);
+        const fullDate = formatFullDate(createdDate);
+
         return `
             <li class="post-item${showIndicator ? ' post-unread' : ''}">
                 <div class="post-header">
                     <div>
                         <div class="post-title">${showIndicator ? '<span class="unread-dot" title="' + indicatorLabel + '"></span>' : ''}${highlightedTitle}</div>
-                        <div class="post-date">${new Date(post.date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        })}</div>
+                        <div class="post-date" title="${fullDate}">${relativeTime}</div>
                     </div>
                     <div class="post-meta" title="${wordCount} words · estimated at 200 words per minute">${wordCount} words · ${readingTime}</div>
                 </div>
@@ -391,6 +426,19 @@ function attachEventListeners() {
 // Load posts
 function loadPosts() {
     allPosts = storage.getPosts();
+
+    // Backfill: ensure every post has a created timestamp
+    let needsSave = false;
+    allPosts.forEach(post => {
+        if (!post.created) {
+            post.created = post.date || new Date().toISOString();
+            needsSave = true;
+        }
+    });
+    if (needsSave) {
+        storage.savePosts(allPosts);
+    }
+
     // Sort by date descending
     allPosts.sort((a, b) => new Date(b.date) - new Date(a.date));
     renderDistributionChart();
@@ -439,6 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: 'Welcome to inkwell',
                 slug: 'welcome-to-inkwell',
                 date: new Date('2024-01-15').toISOString(),
+                created: new Date('2024-01-15').toISOString(),
                 content: `---
 title: Welcome to inkwell
 tags: [welcome, getting-started]
@@ -455,6 +504,7 @@ No config files. No theme options. Just write.`
                 title: 'Writing in Markdown',
                 slug: 'writing-in-markdown',
                 date: new Date('2024-01-20').toISOString(),
+                created: new Date('2024-01-20').toISOString(),
                 content: `---
 title: Writing in Markdown
 tags: [markdown, writing]
@@ -474,6 +524,7 @@ Markdown makes writing for the web easy. Use simple syntax to create:
                 title: 'The Art of Minimalism',
                 slug: 'art-of-minimalism',
                 date: new Date('2024-02-01').toISOString(),
+                created: new Date('2024-02-01').toISOString(),
                 content: `---
 title: The Art of Minimalism
 tags: [design, minimalism]
