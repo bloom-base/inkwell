@@ -237,12 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // Create new post
             const newId = Date.now().toString();
+            const now = new Date().toISOString();
             const post = {
                 id: newId,
                 title,
                 slug: generateSlug(title),
                 content,
-                date: new Date().toISOString()
+                date: now,
+                created: now
             };
             storage.addPost(post);
             // Mark new post as read immediately

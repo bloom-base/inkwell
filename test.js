@@ -513,6 +513,118 @@ assertEquals(getDominant({ short: 1, medium: 3, long: 2 }), 'medium', 'Insight: 
 assertEquals(getDominant({ short: 0, medium: 1, long: 5 }), 'long', 'Insight: dominant is long');
 assertEquals(getDominant({ short: 2, medium: 2, long: 0 }), 'short', 'Insight: tie defaults to shorter category');
 
+// ==========================================
+// Relative Time Formatting Tests
+// ==========================================
+console.log('\n--- Relative Time Formatting ---');
+
+function formatRelativeTime(dateString) {
+    const now = Date.now();
+    const then = new Date(dateString).getTime();
+    const seconds = Math.round((now - then) / 1000);
+
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes === 1) return '1 minute ago';
+    if (minutes < 60) return `${minutes} minutes ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours === 1) return '1 hour ago';
+    if (hours < 24) return `${hours} hours ago`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return 'yesterday';
+    if (days < 30) return `${days} days ago`;
+    const months = Math.floor(days / 30);
+    if (months === 1) return '1 month ago';
+    if (months < 12) return `${months} months ago`;
+    const years = Math.floor(months / 12);
+    if (years === 1) return '1 year ago';
+    return `${years} years ago`;
+}
+
+// Test: just now
+assertEquals(formatRelativeTime(new Date().toISOString()), 'just now',
+    'formatRelativeTime: just now for current time');
+
+// Test: minutes ago
+const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+assertEquals(formatRelativeTime(fiveMinAgo), '5 minutes ago',
+    'formatRelativeTime: 5 minutes ago');
+
+// Test: 1 minute ago
+const oneMinAgo = new Date(Date.now() - 61 * 1000).toISOString();
+assertEquals(formatRelativeTime(oneMinAgo), '1 minute ago',
+    'formatRelativeTime: 1 minute ago');
+
+// Test: hours ago
+const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+assertEquals(formatRelativeTime(threeHoursAgo), '3 hours ago',
+    'formatRelativeTime: 3 hours ago');
+
+// Test: 1 hour ago
+const oneHourAgo = new Date(Date.now() - 61 * 60 * 1000).toISOString();
+assertEquals(formatRelativeTime(oneHourAgo), '1 hour ago',
+    'formatRelativeTime: 1 hour ago');
+
+// Test: yesterday
+const oneDayAgo = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+assertEquals(formatRelativeTime(oneDayAgo), 'yesterday',
+    'formatRelativeTime: yesterday');
+
+// Test: days ago
+const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+assertEquals(formatRelativeTime(fiveDaysAgo), '5 days ago',
+    'formatRelativeTime: 5 days ago');
+
+// Test: months ago
+const twoMonthsAgo = new Date(Date.now() - 61 * 24 * 60 * 60 * 1000).toISOString();
+assertEquals(formatRelativeTime(twoMonthsAgo), '2 months ago',
+    'formatRelativeTime: 2 months ago');
+
+// Test: 1 year ago
+const oneYearAgo = new Date(Date.now() - 366 * 24 * 60 * 60 * 1000).toISOString();
+assertEquals(formatRelativeTime(oneYearAgo), '1 year ago',
+    'formatRelativeTime: 1 year ago');
+
+// Test: years ago
+const threeYearsAgo = new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString();
+assertEquals(formatRelativeTime(threeYearsAgo), '3 years ago',
+    'formatRelativeTime: multiple years ago');
+
+// Test: created field backfill logic
+console.log('\n--- Created Field Backfill ---');
+
+function backfillCreated(posts) {
+    let needsSave = false;
+    posts.forEach(post => {
+        if (!post.created) {
+            post.created = post.date || new Date().toISOString();
+            needsSave = true;
+        }
+    });
+    return { posts, needsSave };
+}
+
+// Posts without created get backfilled from date
+const postsNoCreated = [
+    { id: '1', title: 'A', date: '2024-06-01T00:00:00.000Z' },
+    { id: '2', title: 'B', date: '2024-07-01T00:00:00.000Z' }
+];
+const backfilled = backfillCreated(postsNoCreated);
+assert(backfilled.needsSave, 'Backfill: should flag needsSave when posts lack created');
+assertEquals(backfilled.posts[0].created, '2024-06-01T00:00:00.000Z',
+    'Backfill: created should be set from date');
+assertEquals(backfilled.posts[1].created, '2024-07-01T00:00:00.000Z',
+    'Backfill: created should be set from date for second post');
+
+// Posts with created are not modified
+const postsWithCreated = [
+    { id: '1', title: 'A', date: '2024-08-01T00:00:00.000Z', created: '2024-06-01T00:00:00.000Z' }
+];
+const noChange = backfillCreated(postsWithCreated);
+assert(!noChange.needsSave, 'Backfill: should not flag needsSave when all posts have created');
+assertEquals(noChange.posts[0].created, '2024-06-01T00:00:00.000Z',
+    'Backfill: existing created should not be overwritten');
+
 // Summary
 const passed = results.filter(r => r.passed).length;
 const failed = results.filter(r => !r.passed).length;
