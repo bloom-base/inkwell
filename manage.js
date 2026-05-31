@@ -198,6 +198,97 @@ let activeTag = null;
 let searchQuery = '';
 let showUnreadOnly = false;
 
+// Preview tooltip singleton
+const tooltip = (() => {
+    let el = null;
+    let hideTimer = null;
+    let showTimer = null;
+
+    function getElement() {
+        if (!el) {
+            el = document.createElement('div');
+            el.className = 'post-preview-tooltip';
+            el.setAttribute('role', 'tooltip');
+            document.body.appendChild(el);
+        }
+        return el;
+    }
+
+    function position(tip, anchor) {
+        const rect = anchor.getBoundingClientRect();
+        const gap = 8;
+
+        // Default: place below the card, left-aligned
+        let top = rect.bottom + gap;
+        let left = rect.left;
+
+        // Measure tooltip (render offscreen first)
+        tip.style.left = '-9999px';
+        tip.style.top = '-9999px';
+        tip.classList.add('visible');
+        const tipW = tip.offsetWidth;
+        const tipH = tip.offsetHeight;
+        tip.classList.remove('visible');
+
+        // Flip above if no room below
+        if (top + tipH > window.innerHeight - 8) {
+            top = rect.top - tipH - gap;
+        }
+
+        // Keep within horizontal bounds
+        if (left + tipW > window.innerWidth - 8) {
+            left = window.innerWidth - tipW - 8;
+        }
+        if (left < 8) left = 8;
+
+        tip.style.top = top + 'px';
+        tip.style.left = left + 'px';
+    }
+
+    function show(postId, anchorEl) {
+        clearTimeout(hideTimer);
+        clearTimeout(showTimer);
+
+        const post = filteredPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        showTimer = setTimeout(() => {
+            const tip = getElement();
+            const wordCount = getWordCount(post.content);
+            const readingTime = getReadingTime(wordCount);
+            const createdDate = post.created || post.date;
+            const fullDate = formatFullDate(createdDate);
+
+            tip.innerHTML =
+                '<div class="tooltip-row">' +
+                    '<span class="tooltip-label">Words</span>' +
+                    '<span class="tooltip-value">' + wordCount.toLocaleString() + '</span>' +
+                '</div>' +
+                '<div class="tooltip-row">' +
+                    '<span class="tooltip-label">Reading time</span>' +
+                    '<span class="tooltip-value">' + readingTime + '</span>' +
+                '</div>' +
+                '<div class="tooltip-divider"></div>' +
+                '<div class="tooltip-row">' +
+                    '<span class="tooltip-label">Created</span>' +
+                    '<span class="tooltip-value">' + fullDate + '</span>' +
+                '</div>';
+
+            position(tip, anchorEl);
+            tip.classList.add('visible');
+        }, 400);
+    }
+
+    function hide() {
+        clearTimeout(showTimer);
+        hideTimer = setTimeout(() => {
+            if (el) el.classList.remove('visible');
+        }, 100);
+    }
+
+    return { show, hide };
+})();
+
 // Render the word count distribution chart
 function renderDistributionChart() {
     const chart = document.getElementById('distributionChart');
@@ -322,7 +413,7 @@ function renderPosts() {
         const fullDate = formatFullDate(createdDate);
 
         return `
-            <li class="post-item${showIndicator ? ' post-unread' : ''}">
+            <li class="post-item${showIndicator ? ' post-unread' : ''}" data-post-id="${post.id}">
                 <div class="post-header">
                     <div>
                         <div class="post-title">${showIndicator ? '<span class="unread-dot" title="' + indicatorLabel + '"></span>' : ''}${highlightedTitle}</div>
@@ -406,6 +497,16 @@ function attachEventListeners() {
             const id = e.target.dataset.id;
             const post = storage.getPost(id);
             if (post) downloadPost(post);
+        });
+    });
+
+    // Post item hover tooltips
+    document.querySelectorAll('.post-item[data-post-id]').forEach(item => {
+        item.addEventListener('mouseenter', () => {
+            tooltip.show(item.dataset.postId, item);
+        });
+        item.addEventListener('mouseleave', () => {
+            tooltip.hide();
         });
     });
 
