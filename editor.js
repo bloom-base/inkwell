@@ -156,6 +156,42 @@ function updateStats(text) {
     }
 }
 
+// Detect Mac for modifier key display
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform || '');
+const modKey = isMac ? '⌘' : 'Ctrl';
+
+// Show a brief toast notification
+function showToast(message) {
+    const toast = document.getElementById('saveToast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('visible');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('visible'), 1800);
+}
+
+// Toggle the preview panel visibility
+function togglePreview() {
+    const previewCol = document.querySelector('.preview-col');
+    const editorSplit = document.querySelector('.editor-split');
+    const btn = document.getElementById('previewToggleBtn');
+    if (!previewCol || !editorSplit || !btn) return;
+
+    const hiding = !previewCol.classList.contains('hidden');
+    previewCol.classList.toggle('hidden', hiding);
+    editorSplit.classList.toggle('preview-hidden', hiding);
+    btn.textContent = hiding ? 'Show Preview' : 'Hide Preview';
+    btn.title = hiding
+        ? `Show live preview (${modKey}+P)`
+        : `Hide live preview (${modKey}+P)`;
+}
+
+// Toggle the shortcut help overlay
+function toggleShortcutOverlay() {
+    const overlay = document.getElementById('shortcutOverlay');
+    if (overlay) overlay.classList.toggle('visible');
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -213,29 +249,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial stats update
     updateStats(contentInput.value);
 
-    // Form submission
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-
+    // Save post logic (shared between form submit and Ctrl+S)
+    function savePost(opts = {}) {
         const title = titleInput.value.trim();
         const content = contentInput.value.trim();
 
         if (!title || !content) {
             alert('Please fill in all fields');
-            return;
+            return false;
         }
 
         if (postId) {
-            // Update existing post
             storage.updatePost(postId, {
                 title,
                 content,
                 date: new Date().toISOString()
             });
-            // Re-mark as read after saving
             readStatus.markRead(postId);
         } else {
-            // Create new post
             const newId = Date.now().toString();
             const now = new Date().toISOString();
             const post = {
@@ -247,10 +278,101 @@ document.addEventListener('DOMContentLoaded', () => {
                 created: now
             };
             storage.addPost(post);
-            // Mark new post as read immediately
             readStatus.markRead(newId);
         }
 
-        window.location.href = 'manage.html';
+        return true;
+    }
+
+    // Form submission — save and navigate back
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (savePost()) {
+            window.location.href = 'manage.html';
+        }
     });
+
+    // Preview toggle button
+    const previewToggleBtn = document.getElementById('previewToggleBtn');
+    if (previewToggleBtn) {
+        previewToggleBtn.title = `Hide live preview (${modKey}+P)`;
+        previewToggleBtn.addEventListener('click', togglePreview);
+    }
+
+    // Set button tooltips with keyboard hints
+    if (saveBtn) saveBtn.title = `Save post (${modKey}+S)`;
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) cancelBtn.title = 'Cancel (Esc)';
+
+    // Replace Ctrl with ⌘ in shortcut overlay on Mac
+    if (isMac) {
+        document.querySelectorAll('.shortcut-key[data-mod]').forEach(el => {
+            el.textContent = '⌘';
+        });
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        const mod = isMac ? e.metaKey : e.ctrlKey;
+        const overlay = document.getElementById('shortcutOverlay');
+        const overlayOpen = overlay && overlay.classList.contains('visible');
+
+        // Escape — close overlay or cancel
+        if (e.key === 'Escape') {
+            if (overlayOpen) {
+                toggleShortcutOverlay();
+            } else {
+                window.location.href = 'manage.html';
+            }
+            return;
+        }
+
+        // ? — toggle help (only when not typing in an input)
+        if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+            const tag = document.activeElement?.tagName;
+            if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                e.preventDefault();
+                toggleShortcutOverlay();
+                return;
+            }
+        }
+
+        // Close overlay on any shortcut if it's open
+        if (overlayOpen && mod) {
+            toggleShortcutOverlay();
+        }
+
+        // Ctrl/Cmd+S — save in place (no navigation)
+        if (mod && e.key === 's') {
+            e.preventDefault();
+            if (savePost()) {
+                showToast('Post saved ✓');
+            }
+            return;
+        }
+
+        // Ctrl/Cmd+P — toggle preview
+        if (mod && e.key === 'p') {
+            e.preventDefault();
+            togglePreview();
+            return;
+        }
+
+        // Ctrl/Cmd+N — new post
+        if (mod && e.key === 'n') {
+            e.preventDefault();
+            window.location.href = 'editor.html';
+            return;
+        }
+    });
+
+    // Close overlay when clicking the backdrop
+    const shortcutOverlay = document.getElementById('shortcutOverlay');
+    if (shortcutOverlay) {
+        shortcutOverlay.addEventListener('click', (e) => {
+            if (e.target === shortcutOverlay) {
+                toggleShortcutOverlay();
+            }
+        });
+    }
 });
