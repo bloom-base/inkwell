@@ -191,6 +191,52 @@ function highlightText(text, query) {
     return text.replace(regex, '<span class="highlight">$1</span>');
 }
 
+// Toast notification
+function showToast(message) {
+    let toast = document.querySelector('.toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    // Force reflow before adding visible class
+    toast.offsetHeight;
+    toast.classList.add('visible');
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => {
+        toast.classList.remove('visible');
+    }, 1800);
+}
+
+// Duplicate a post
+function duplicatePost(id) {
+    const post = storage.getPost(id);
+    if (!post) return;
+
+    const now = new Date().toISOString();
+    const newPost = {
+        id: Date.now().toString(),
+        title: post.title + ' (Copy)',
+        slug: post.slug + '-copy',
+        date: now,
+        created: now,
+        content: post.content
+    };
+
+    // Update title in frontmatter if present
+    newPost.content = newPost.content.replace(
+        /^(---\s*\n[\s\S]*?title:\s*)(.+)/m,
+        '$1' + newPost.title
+    );
+
+    const posts = storage.getPosts();
+    posts.unshift(newPost);
+    storage.savePosts(posts);
+    loadPosts();
+    showToast('Post duplicated');
+}
+
 // State
 let allPosts = [];
 let filteredPosts = [];
@@ -430,6 +476,7 @@ function renderPosts() {
                 </div>
                 <div class="post-actions">
                     <a href="editor.html?id=${post.id}" class="btn btn-sm">Edit</a>
+                    <button class="btn btn-sm btn-duplicate" data-id="${post.id}" title="Duplicate this post">Duplicate</button>
                     <button class="btn btn-sm btn-download" data-id="${post.id}" title="Download as markdown file">↓ .md</button>
                     <button class="btn btn-sm btn-delete" data-id="${post.id}">Delete</button>
                 </div>
@@ -491,6 +538,14 @@ function attachEventListeners() {
         });
     });
     
+    // Duplicate buttons
+    document.querySelectorAll('.btn-duplicate').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = e.target.dataset.id;
+            duplicatePost(id);
+        });
+    });
+
     // Download buttons
     document.querySelectorAll('.btn-download').forEach(btn => {
         btn.addEventListener('click', (e) => {

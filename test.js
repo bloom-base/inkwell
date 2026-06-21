@@ -625,6 +625,89 @@ assert(!noChange.needsSave, 'Backfill: should not flag needsSave when all posts 
 assertEquals(noChange.posts[0].created, '2024-06-01T00:00:00.000Z',
     'Backfill: existing created should not be overwritten');
 
+// ==========================================
+// Post Duplication Tests
+// ==========================================
+console.log('\n--- Post Duplication ---');
+
+function duplicatePostLogic(post) {
+    const now = new Date().toISOString();
+    const newPost = {
+        id: Date.now().toString(),
+        title: post.title + ' (Copy)',
+        slug: post.slug + '-copy',
+        date: now,
+        created: now,
+        content: post.content
+    };
+    // Update title in frontmatter if present
+    newPost.content = newPost.content.replace(
+        /^(---\s*\n[\s\S]*?title:\s*)(.+)/m,
+        '$1' + newPost.title
+    );
+    return newPost;
+}
+
+// Test: duplicated post has (Copy) in title
+const originalPost = {
+    id: '100',
+    title: 'My Original Post',
+    slug: 'my-original-post',
+    date: '2024-06-01T00:00:00.000Z',
+    created: '2024-06-01T00:00:00.000Z',
+    content: `---\ntitle: My Original Post\ntags: [javascript, web]\n---\n\n# My Original Post\n\nSome content here with **bold** and *italic* text.`
+};
+
+const duplicated = duplicatePostLogic(originalPost);
+
+assertEquals(duplicated.title, 'My Original Post (Copy)',
+    'Duplicate: title should have (Copy) appended');
+
+assertEquals(duplicated.slug, 'my-original-post-copy',
+    'Duplicate: slug should have -copy appended');
+
+assert(duplicated.id !== originalPost.id,
+    'Duplicate: should have a new unique ID');
+
+assert(duplicated.date !== originalPost.date,
+    'Duplicate: should have a new date');
+
+assert(duplicated.created !== originalPost.created,
+    'Duplicate: should have a new created timestamp');
+
+// Test: tags carry over
+const dupTags = extractTags(duplicated.content);
+assertEquals(dupTags, ['javascript', 'web'],
+    'Duplicate: tags should carry over from original');
+
+// Test: frontmatter title is updated
+assert(duplicated.content.includes('title: My Original Post (Copy)'),
+    'Duplicate: frontmatter title should be updated to include (Copy)');
+
+// Test: body content carries over
+assert(duplicated.content.includes('Some content here with **bold** and *italic* text.'),
+    'Duplicate: body content should carry over');
+
+// Test: word count matches original
+assertEquals(getWordCount(duplicated.content), getWordCount(originalPost.content),
+    'Duplicate: word count should match original (body unchanged)');
+
+// Test: duplicating a post without frontmatter
+const noFmPost = {
+    id: '200',
+    title: 'No Frontmatter',
+    slug: 'no-frontmatter',
+    date: '2024-06-01T00:00:00.000Z',
+    created: '2024-06-01T00:00:00.000Z',
+    content: '# Just a heading\n\nSome plain content.'
+};
+
+const dupNoFm = duplicatePostLogic(noFmPost);
+assertEquals(dupNoFm.title, 'No Frontmatter (Copy)',
+    'Duplicate without frontmatter: title should have (Copy)');
+assertEquals(dupNoFm.content, noFmPost.content,
+    'Duplicate without frontmatter: content unchanged when no frontmatter title');
+
 // Summary
 const passed = results.filter(r => r.passed).length;
 const failed = results.filter(r => !r.passed).length;
